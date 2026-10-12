@@ -130,6 +130,15 @@ All controls are in the **training controls** cell.
 3. `RUN_CONFIGS = ALL_CONFIGS`, keeping the settings from step 2: train the remaining five configurations.
 4. `RUN_TEST_EVALUATION = True`: run the test evaluation cell. A preflight check first confirms that all six runs have 15 epochs, all required checkpoints, and matching configuration, data identity, vocabulary, and labels.
 
+## Visualizations
+
+The **Visualizations** section at the end of the notebook reads only saved artifacts (`history.json`, `test_confusion_matrix.csv`, `runs/test_results.csv`). It does not train models or run inference. It first checks that all six runs have 15 epochs of history and a 3×3 matrix (Claude, GPT, Qwen) whose total equals the test split size. For each configuration it then shows and saves two figures, 12 in total, as PNG (300 dpi) and PDF in `OUTPUT_DIR/figures/`:
+
+- **Training curves:** loss, accuracy, and macro F1 per epoch for training and validation. A dashed line marks the best-validation epoch recorded in `test_results.csv`.
+- **Confusion matrix:** raw test counts with a color scale shared across the six runs, and row-normalized percentages on a 0–100% scale.
+
+To produce the figures without retraining, run the Drive mount, output-path, and setup cells, then the three visualization cells. Matplotlib is used directly; it is preinstalled on Colab.
+
 ## Output files
 
 All paths are relative to `OUTPUT_DIR`.
@@ -144,6 +153,9 @@ All paths are relative to `OUTPUT_DIR`.
 | `runs/<Model>_<condition>/history.json` | Per-epoch training and validation metrics, timings, and peak GPU memory |
 | `runs/<Model>_<condition>/test_predictions.csv`, `test_confusion_matrix.csv` | Test predictions and confusion matrix |
 | `runs/test_results.csv` | Test accuracy and macro F1 for all six configurations |
+
+| `figures/<Model>_<condition>_training.png`, `.pdf` | Training and validation loss, accuracy, and macro F1 per epoch, with the selected epoch marked |
+| `figures/<Model>_<condition>_confusion.png`, `.pdf` | Test confusion matrix as counts and row-normalized percentages |
 
 Run directory names are `CNN_input`, `CNN_output`, `CNN_input_plus_output`, `BiLSTM_input`, `BiLSTM_output`, and `BiLSTM_input_plus_output`.
 
