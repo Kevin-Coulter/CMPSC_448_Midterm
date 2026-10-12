@@ -166,14 +166,4 @@ Present one comparison table for the six configurations. Discuss whether output 
 
 The report must include dataset curation, architecture and training details, results, analysis addressing RQ1 and RQ2, limitations, and lessons learned. Do not claim measured performance before experiments are completed.
 
-## Deliverables and current stage
 
-Submit a GitHub repository containing the code/notebook and a PDF report identifying Kevin Coulter as the individual author.
-
-Completed on Colab (Tesla T4), as recorded in the notebook's saved outputs:
-- the GPU resume self-check passed;
-- all six configurations completed 15 epochs with the settings above;
-- the test preflight passed, and each best validation checkpoint was evaluated once on the test split (accuracy, macro F1, and confusion matrices);
-- training-curve and confusion-matrix figures were generated from the saved artifacts.
-
-Checkpoints, histories, predictions, and figures are stored on Google Drive, not in the repository. Remaining work: add the final PDF report to the repository.
