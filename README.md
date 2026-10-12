@@ -33,7 +33,7 @@ Values are from the saved output of the notebook's test evaluation cell. On this
 | `DESIGN_DECISIONS.md` | Experimental design and rationale |
 | `outputs/progress_log.txt` | Progress log of an early local preprocessing run (not the training log) |
 
-Checkpoints, training histories, test predictions, confusion-matrix files, and figures were written to Google Drive during the Colab run and are **not** included in the repository (see [Output files](#output-files)).
+Checkpoints, training histories, test predictions, confusion-matrix files, and figures were written to Google Drive during the Colab run and are **not** included in the repository.
 
 ## Dataset
 
