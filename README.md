@@ -5,15 +5,35 @@ CMPSC 448 project. The project trains text classifiers to identify which model f
 - **RQ1:** Can the generating model family be identified from the response text?
 - **RQ2:** Does including the user's prompt improve identification?
 
-All code is in `who_wrote_it.ipynb`. The experimental design and the rationale for each decision are in `DESIGN_DECISIONS.md`.
+A CNN and a bidirectional LSTM were each trained under three input conditions: input only, output only, and input + output. All six configurations completed 15 epochs, and each selected checkpoint was evaluated once on the held-out test split.
+
+All code is in [`who_wrote_it.ipynb`](who_wrote_it.ipynb). The experimental design and the rationale for each decision are in [`DESIGN_DECISIONS.md`](DESIGN_DECISIONS.md). The final report, with the detailed results and analysis, will be added to this repository.
+
+## Results
+
+Test split: 198 examples (66 per family). The selected epoch has the best validation macro F1; test results were not used for selection.
+
+| Model | Input condition | Selected epoch | Test accuracy | Test macro F1 |
+| --- | --- | --- | --- | --- |
+| CNN | Input only | 13 | 0.3636 | 0.3579 |
+| CNN | Output only | 14 | 0.7879 | 0.7856 |
+| CNN | Input + output | 15 | 0.7475 | 0.7447 |
+| BiLSTM | Input only | 1 | 0.3889 | 0.3888 |
+| BiLSTM | Output only | 2 | 0.6566 | 0.6486 |
+| BiLSTM | Input + output | 9 | 0.5556 | 0.5542 |
+
+Values are from the saved output of the notebook's test evaluation cell. On this dataset and split, output only performed best for both architectures; the CNN output-only model reached 78.79% accuracy and 0.7856 macro F1. Adding the prompt did not improve on output only, and input only stayed near chance (0.333) for both models. Each configuration was trained once with one seed, so run-to-run variability is not measured. Confusion matrices are printed in the notebook; the analysis is in the final report.
 
 ## Repository contents
 
 | File | Purpose |
 | --- | --- |
-| `who_wrote_it.ipynb` | Data preparation, models, benchmark, training, and test evaluation |
+| `who_wrote_it.ipynb` | Data preparation, models, benchmark, training, test evaluation, and visualizations, with the saved outputs of the completed Colab run |
 | `split_reference.csv` | Reference of the selected examples and split assignments; required for every run |
 | `DESIGN_DECISIONS.md` | Experimental design and rationale |
+| `outputs/progress_log.txt` | Progress log of an early local preprocessing run (not the training log) |
+
+Checkpoints, training histories, test predictions, confusion-matrix files, and figures were written to Google Drive during the Colab run and are **not** included in the repository (see [Output files](#output-files)).
 
 ## Dataset
 
@@ -74,9 +94,16 @@ Every run rebuilds the split and compares it with `split_reference.csv`. A missi
 - Six configurations: two models × three input conditions, all using the same examples and split.
 - Batch size 16, padded per batch. 15 epochs. Adam with learning rate 0.001. Ordinary cross-entropy without class weights. Seed 42, reset for each configuration.
 - Validation loss, accuracy, and macro F1 are recorded every epoch. The best checkpoint has the highest validation macro F1; ties go to lower validation loss.
-- After all six runs finish, each best checkpoint is evaluated once on the test split. This produces accuracy, macro F1, and a confusion matrix. Test results are not used for checkpoint selection or tuning.
+- After all six runs finished, each best checkpoint was evaluated once on the test split, producing accuracy, macro F1, and a confusion matrix. Test results were not used for checkpoint selection or tuning.
+- Hardware: Google Colab, Tesla T4 GPU.
 
-## Setup
+## Viewing the completed results
+
+No execution is needed. Open `who_wrote_it.ipynb` (on GitHub, in VS Code, or in Jupyter) and read the saved outputs: per-epoch logs in the run cell, the results table and confusion matrices in the test evaluation cell, and the figures in the Visualizations section.
+
+## Reproducing the project
+
+Reproducing the results reruns data preparation and trains all six configurations, writing new checkpoints. A GPU runtime is needed for practical run times.
 
 ### Local
 
@@ -90,6 +117,7 @@ py -3.13 -m venv .venv
 - The first two code cells (Drive mount and Drive output path) are for Colab only and must be skipped locally.
 - Outputs go to `outputs/` unless `WHO_WROTE_IT_OUTPUT` is set.
 - The dataset may require a Hugging Face login (`hf auth login`), performed outside the notebook.
+- Data preparation was run locally; training and evaluation were run on Colab.
 
 ### Google Colab (GPU)
 
@@ -97,67 +125,60 @@ py -3.13 -m venv .venv
 2. Run the Drive mount cell, then the output-path cell. The output-path cell sets `WHO_WROTE_IT_OUTPUT` to `/content/drive/MyDrive/CMPSC448_WhoWroteIt`.
 3. Run the setup cell and the data-preparation cells through the split-reference check.
 4. Run the tokenizer, vocabulary count, vocabulary/batching, and model cells. The benchmark cells are optional.
-5. Run the training cells:
-   - the controls;
-   - the helpers;
-   - `train_configuration`;
-   - the GPU resume self-check;
-   - the run cell.
+5. Run the training cells: the controls, the helpers, `train_configuration`, the GPU resume self-check, and the run cell.
+6. Run the test evaluation cell, then the visualization cells.
 
 On Colab, the training controls cell stops unless `/content/drive` is a mounted file system and the output directory is on it.
 
-## Running experiments
+### Training controls
 
-All controls are in the **training controls** cell.
+All controls are in the **training controls** cell. The notebook is saved with the values used for the final session.
 
-| Control | Default | Purpose |
+| Control | Saved value | Purpose |
 | --- | --- | --- |
-| `RUN_CONFIGS` | `[("BiLSTM", "input + output")]` | Configurations to train; `ALL_CONFIGS` selects all six |
-| `STOP_AFTER_EPOCH` | `1` | Last epoch to complete in this execution; `15` completes a run |
-| `CONTINUE_EXISTING` | `False` | Must be `True` to continue a run that already has checkpoints |
-| `RUN_TEST_EVALUATION` | `False` | Enables the final test evaluation |
+| `RUN_CONFIGS` | `ALL_CONFIGS` | Configurations to train; `ALL_CONFIGS` selects all six |
+| `STOP_AFTER_EPOCH` | `15` | Last epoch to complete in this execution; `15` completes a run |
+| `CONTINUE_EXISTING` | `True` | Must be `True` to continue a run that already has checkpoints |
+| `RUN_TEST_EVALUATION` | `True` | Enables the final test evaluation |
 
-### Default run and continuation
+With `CONTINUE_EXISTING = False`, a run whose directory already has checkpoints is refused rather than overwritten. Runs already at epoch 15 are skipped.
 
-- **Default execution** trains and validates only epoch 1 of BiLSTM input + output. This measures the cost of mixed-length training batches before all runs are launched, and the epoch counts toward that configuration's 15-epoch run.
-- **Continuing** with `CONTINUE_EXISTING = True` resumes from the next epoch. It restores model, optimizer, and random-number states, and keeps the metric history and best-checkpoint tracking. A run is continued only when its saved configuration (including architecture settings and labels) and data identity match. Existing runs are never overwritten.
-- **GPU resume self-check.** When CUDA is available, a self-check cell saves and reloads a small GPU training state, then confirms that the next step matches.
+### Resuming from checkpoints
 
-### Typical sequence
+With `CONTINUE_EXISTING = True`, a run resumes from the epoch after its `latest.pt`. Model, optimizer, and random-number states are restored, and the metric history and best-checkpoint tracking continue. A run is continued only when its saved configuration (including architecture settings and labels) and data identity match.
 
-1. Default run: epoch 1 of BiLSTM input + output.
-2. `CONTINUE_EXISTING = True`, `STOP_AFTER_EPOCH = 15`: complete that run.
-3. `RUN_CONFIGS = ALL_CONFIGS`, keeping the settings from step 2: train the remaining five configurations.
-4. `RUN_TEST_EVALUATION = True`: run the test evaluation cell. A preflight check first confirms that all six runs have 15 epochs, all required checkpoints, and matching configuration, data identity, vocabulary, and labels.
+Before training, the GPU resume self-check saves and reloads a small CUDA training state and confirms that the next step matches; it passed in the saved Colab run. The BiLSTM input + output run was trained for one epoch, then resumed and completed through epoch 15.
 
-## Visualizations
+### Test evaluation
+
+With `RUN_TEST_EVALUATION = True`, a preflight check first confirms that all six runs have 15 epochs, all required checkpoints, and matching configuration, data identity, vocabulary, and labels. Each `best.pt` is then evaluated once on the test split.
+
+## Generating figures from saved results
 
 The **Visualizations** section at the end of the notebook reads only saved artifacts (`history.json`, `test_confusion_matrix.csv`, `runs/test_results.csv`). It does not train models or run inference. It first checks that all six runs have 15 epochs of history and a 3×3 matrix (Claude, GPT, Qwen) whose total equals the test split size. For each configuration it then shows and saves two figures, 12 in total, as PNG (300 dpi) and PDF in `OUTPUT_DIR/figures/`:
 
-- **Training curves:** loss, accuracy, and macro F1 per epoch for training and validation. A dashed line marks the best-validation epoch recorded in `test_results.csv`.
+- **Training curves:** loss, accuracy, and macro F1 per epoch for training and validation. A dashed line marks the selected epoch recorded in `test_results.csv`.
 - **Confusion matrix:** raw test counts with a color scale shared across the six runs, and row-normalized percentages on a 0–100% scale.
 
-To produce the figures without retraining, run the Drive mount, output-path, and setup cells, then the three visualization cells. Matplotlib is used directly; it is preinstalled on Colab.
+To produce the figures without retraining, run the Drive mount, output-path, and setup cells, then the three visualization cells. This requires the saved run artifacts in the Drive output folder. Matplotlib is used directly; it is preinstalled on Colab.
 
 ## Output files
 
-All paths are relative to `OUTPUT_DIR`.
+In the completed run, `OUTPUT_DIR` was `/content/drive/MyDrive/CMPSC448_WhoWroteIt` on Google Drive. Paths below are relative to it. **These files are not included in the repository**; the results they hold are preserved in the notebook's saved outputs.
 
 | File | Contents |
 | --- | --- |
 | `progress_log.txt` | Timestamped progress and per-epoch metrics |
-| `benchmark_log.txt` | Benchmark step timings |
 | `runs/<Model>_<condition>/latest.pt` | Checkpoint after the most recent epoch |
 | `runs/<Model>_<condition>/best.pt` | Checkpoint with the best validation macro F1 |
 | `runs/<Model>_<condition>/epoch_05.pt`, `epoch_10.pt`, `epoch_15.pt` | Fixed-epoch checkpoints |
 | `runs/<Model>_<condition>/history.json` | Per-epoch training and validation metrics, timings, and peak GPU memory |
 | `runs/<Model>_<condition>/test_predictions.csv`, `test_confusion_matrix.csv` | Test predictions and confusion matrix |
 | `runs/test_results.csv` | Test accuracy and macro F1 for all six configurations |
-
 | `figures/<Model>_<condition>_training.png`, `.pdf` | Training and validation loss, accuracy, and macro F1 per epoch, with the selected epoch marked |
 | `figures/<Model>_<condition>_confusion.png`, `.pdf` | Test confusion matrix as counts and row-normalized percentages |
 
-Run directory names are `CNN_input`, `CNN_output`, `CNN_input_plus_output`, `BiLSTM_input`, `BiLSTM_output`, and `BiLSTM_input_plus_output`.
+Run directory names are `CNN_input`, `CNN_output`, `CNN_input_plus_output`, `BiLSTM_input`, `BiLSTM_output`, and `BiLSTM_input_plus_output`. The benchmark log (`benchmark_log.txt`) was written to the temporary Colab disk and was not preserved.
 
 Each checkpoint contains:
 - model and optimizer state;
@@ -169,18 +190,18 @@ Each checkpoint contains:
 
 The embedding table (about 11.5 million parameters) accounts for most of a checkpoint's size.
 
-## Current status
+## Status
 
 | Component | Status |
 | --- | --- |
 | Data preparation, grouping, balancing, split | Executed locally; reproduced on Colab (split reference matched) |
 | Tokenizer, vocabulary, models | Executed on Colab; padding-invariance check passed |
-| Compute benchmark | Executed on a Colab Tesla T4 (see below) |
-| Training, checkpointing, continuation | Implemented; tested only on small synthetic data on CPU |
-| GPU resume self-check | Implemented; **not executed** |
-| Test evaluation | Implemented; **not executed** |
-
-No model has been trained on the real data, and no classification results exist yet.
+| Compute benchmark | Executed on a Colab Tesla T4 |
+| GPU resume self-check | Executed on Colab; passed |
+| Training (six configurations, 15 epochs each) | Completed on Colab |
+| Test evaluation | Completed; preflight passed for all six runs |
+| Visualizations | Executed on Colab; 12 figures saved to Drive |
+| Final report | To be added |
 
 Benchmark on a Colab Tesla T4, input + output, full sequences. Values are seconds per training step and measure compute cost only, not classification performance:
 
@@ -191,14 +212,15 @@ Benchmark on a Colab Tesla T4, input + output, full sequences. Values are second
 | 99th-percentile length (12,160 tokens), batch 1 | 0.018 | 0.653 |
 | Longest (41,447 tokens), batch 1 | 0.049 | 2.204 |
 
-The highest measured GPU memory across these cases was 1.03 GB. Mixed-length training batches have not been benchmarked.
+The highest measured GPU memory across these cases was 1.03 GB.
 
 ## Limitations
 
+- Results apply to this dataset, its curation, and this split; they do not establish performance on other data or model versions.
 - English eligibility relies on the dataset's row-level language label.
 - Balancing by downsampling discards 604 usable Claude and Qwen examples.
 - Response lengths differ by family (median whitespace word counts before balancing: Claude 318, GPT 574, Qwen 731), so length may act as a shortcut feature.
 - The tokenizer discards spaces and indentation, and treats each CJK character run as one token.
-- Each configuration is trained once with one seed, so seed variability is not measured.
+- Each configuration is trained once with one seed, so seed variability is not measured. With 198 test examples, small differences between configurations may not be meaningful.
 - GPU (cuDNN) LSTM computations may not be bit-for-bit reproducible, including across resumed runs.
 - Prompt-only (input-only) performance may reflect dataset associations or selection effects rather than properties of the models.

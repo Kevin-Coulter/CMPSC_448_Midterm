@@ -4,7 +4,7 @@ Solo CMPSC 448 project by Kevin Coulter. Due October 11, 2026, at 11:59 PM.
 
 This project investigates whether a convolutional neural network (CNN) and a recurrent neural network (RNN) can identify the LLM family responsible for a response, and whether including the user's prompt improves classification.
 
-This README records the agreed experimental design. It describes planned work, not completed implementation or measured results.
+This document records the experimental design and its rationale. All six configurations have been trained and evaluated under this design; results are summarized in `README.md` and analyzed in the final report.
 
 ## Scope and working principles
 
@@ -12,7 +12,7 @@ This README records the agreed experimental design. It describes planned work, n
 - Use three labels: Claude (Anthropic), GPT (OpenAI), and Qwen (Alibaba).
 - Implement one CNN and one bidirectional LSTM, evaluated under three input conditions.
 - Keep the implementation centered on a readable Jupyter notebook, `who_wrote_it.ipynb`.
-- Keep the project small and understandable. Each design decision must have a rationale. Material changes to this design require review by the project author before implementation.
+- Keep the project small and understandable. Each design decision must have a rationale. Material design changes are recorded here before implementation.
 - Do not add classifiers, experiment grids, extra research questions, or supporting infrastructure without an explicit scope decision.
 
 The goal is a controlled comparison that a solo author can verify and explain.
@@ -54,7 +54,7 @@ Authentication, if required, happens outside the notebook. Do not store credenti
 | Restrict examples to English | Reduces language-related confounding so family predictions are less likely to depend on different language distributions. |
 | Treat each prompt–response pair as one example | Retains usable examples from multiple turns rather than discarding later conversation turns. |
 | Extract examples only from each row's current turn (`conversation_a`/`conversation_b`) | Historical responses in `full_conversation` carry no generating model identifiers, and sample checks showed earlier turns were produced by different models than the current row's. Later turns remain eligible through their own rows. Historical responses must not become independently labeled examples. |
-| "Current pair" means the final user–assistant pair of each `conversation_a`/`conversation_b` | The final response is the one judged in the row's vote, so it belongs to the row's `model_a`/`model_b` (to be verified against `full_conversation`). Earlier pairs in these fields are excluded because their generating models are unverified. |
+| "Current pair" means the final user–assistant pair of each `conversation_a`/`conversation_b` | The final response is the one judged in the row's vote, so it belongs to the row's `model_a`/`model_b`; this was confirmed against `full_conversation` for every row. Earlier pairs in these fields are excluded because their generating models are unverified. |
 | Exclude current pairs with an empty prompt or response | An empty text gives no authorship signal. Exclusions are counted separately by reason and side (A/B). The empty-array form `array([], dtype=float64)` is recognized by an exact token match, never by evaluating content. |
 | Do not exclude a current text pair because of historical images | Images in earlier turns do not affect the current text pair. History is kept for grouping. |
 | Rows whose history cannot be reliably parsed remain pending | Without parsed history, a row's split group cannot be determined, so it must not enter extraction with an assumed group. |
@@ -64,7 +64,7 @@ Authentication, if required, happens outside the notebook. Do not store credenti
 | Use the immediately preceding user message as input | Gives input-only a clear definition and excludes earlier model responses from that condition. Later prompts may depend on omitted context; document this limitation. |
 | Keep family counts as balanced as possible | Reduces the advantage of predicting a more frequent family and makes comparisons easier to interpret. |
 
-### Approved identifier-to-family mapping
+### Identifier-to-family mapping
 
 - **Claude (13):** claude-3-5-haiku-20241022, claude-3-5-sonnet-20241022, claude-3-7-sonnet-20250219, claude-3-7-sonnet-20250219-thinking-32k, claude-opus-4-1-20250805, claude-opus-4-1-20250805-thinking-16k, claude-opus-4-1-20250805-thinking-16k-old, claude-opus-4-20250514, claude-opus-4-20250514-thinking-16k, claude-sonnet-4-20250514, claude-sonnet-4-20250514-thinking-32k, claude-sonnet-4-5-20250929-old, claude-sonnet-4-5-20250929-thinking-32k
 - **GPT (12):** chatgpt-4o-latest-20250326, chatgpt-4o-latest-20250326-old, gpt-4.1-2025-04-14, gpt-4.1-mini-2025-04-14, gpt-4o-2024-11-20, gpt-4o-mini-2024-07-18, gpt-5-chat, gpt-5-high, gpt-5-high-new-system-prompt, gpt-5-mini-high, gpt-5-nano-high, gpt-5-old
@@ -78,7 +78,7 @@ Model-to-family mappings, usable counts, turn attribution, English filtering, an
 - English filtering relies on the publisher's row-level language label, which does not guarantee that every final pair is entirely English.
 - Turn attribution covers only the final pair of each side. Earlier pairs and history turns lack verified generating models and are excluded.
 
-**Balancing (approved).** After curation and deduplication, there were 1,138 Claude, 654 GPT, and 774 Qwen examples. Keep all 654 GPT examples. Randomly sample 654 Claude and 654 Qwen examples without replacement, using seed 42 on a stable example ordering, for 1,962 examples in total. Rationale: equal family representation, simpler interpretation, and lower compute cost. Downsampling discards 604 usable examples (484 Claude, 120 Qwen). Group IDs and source associations are kept from before sampling and are not recomputed.
+**Balancing.** After curation and deduplication, there were 1,138 Claude, 654 GPT, and 774 Qwen examples. Keep all 654 GPT examples. Randomly sample 654 Claude and 654 Qwen examples without replacement, using seed 42 on a stable example ordering, for 1,962 examples in total. Rationale: equal family representation, simpler interpretation, and lower compute cost. Downsampling discards 604 usable examples (484 Claude, 120 Qwen). Group IDs and source associations are kept from before sampling and are not recomputed.
 
 Document the dataset source, collection method described by its publisher, access date, revision when available, filtering, exclusions, deduplication, and final counts. Attribute the source and follow its published usage terms. Do not republish raw data without checking applicable permissions.
 
@@ -86,7 +86,7 @@ Document the dataset source, collection method described by its publisher, acces
 
 Target an **80% training / 10% validation / 10% testing** split with seed **42**.
 
-Group assignment (approved): whole represented groups are assigned with one deterministic greedy procedure using seed 42. The decision uses only example counts and family labels, never model performance. The resulting assignment is fixed and reused for all six configurations.
+Group assignment: whole represented groups are assigned with one deterministic greedy procedure using seed 42. The decision uses only example counts and family labels, never model performance. The resulting assignment is fixed and reused for all six configurations.
 
 - Keep all examples from the same originating conversation in one split.
 - Keep responses to the same prompt together, including repeated prompts across conversations.
@@ -103,18 +103,15 @@ Grouping reduces leakage from shared prompts and conversation context. Because g
 | --- | --- |
 | Tokenization | Word tokens, yielding shorter sequences than character tokenization and allowing more text within practical compute limits. |
 | Text signals | Preserve capitalization, punctuation, and line breaks because they may carry authorship information. |
-| Tokenizer (approved) | Python standard-library `re`. It matches line breaks (CRLF or LF, each as one dedicated `<nl>` token), word sequences (`\w+`), and individual non-whitespace punctuation characters (`[^\w\s]`). Case is preserved. All other whitespace is ignored, so **spaces and indentation are not preserved**. This is a simple word-and-punctuation tokenizer that keeps selected formatting signals without external dependencies. Special tokens (`<nl>`, `<sep>`, `<pad>`, `<unk>`) cannot collide with text, because the tokenizer always splits `<` and `>` into separate tokens. |
-
-\|
-\|\w+\|[^\w\s]`: word sequences (`\w+`), each individual non-whitespace punctuation character (`[^\w\s]`), and each line break (CRLF or LF) as a dedicated `<nl>` token. Case is preserved. All other whitespace is ignored, so **spaces and indentation are not preserved**. This is a simple word-and-punctuation tokenizer that keeps selected formatting signals without external dependencies. Special tokens (`<nl>`, `<sep>`, `<pad>`, `<unk>`) cannot collide with text, because the tokenizer always splits `<` and `>` into separate tokens. |
+| Tokenizer | Python standard-library `re`. It matches line breaks (CRLF or LF, each as one dedicated `<nl>` token), word sequences (`\w+`), and individual non-whitespace punctuation characters (`[^\w\s]`). Case is preserved. All other whitespace is ignored, so **spaces and indentation are not preserved**. This is a simple word-and-punctuation tokenizer that keeps selected formatting signals without external dependencies. Special tokens (`<nl>`, `<sep>`, `<pad>`, `<unk>`) cannot collide with text, because the tokenizer always splits `<` and `>` into separate tokens. |
 | Input + output sequence | Tokenized prompt, then `<sep>`, then tokenized response. |
 | Vocabulary | Learn from training text only; include padding, unknown-word, and input/output separator tokens. This prevents vocabulary leakage and supports unseen words. |
 | Embeddings | Train 128-dimensional embeddings from scratch. This keeps the pipeline self-contained while providing useful representational capacity. |
 | Combined condition | Concatenate prompt, a dedicated separator token, and response. One network processes the pair, keeping the comparison straightforward. |
-| Sequence length | Retain complete sequences (approved) | Full-length benchmarks on a Colab Tesla T4 passed for both models, including the longest training sequence (41,447 tokens). The highest measured GPU memory was 1.03 GB. No truncation is applied. |
+| Sequence length | Retain complete sequences. Full-length benchmarks on a Colab Tesla T4 passed for both models, including the longest training sequence (41,447 tokens). The highest measured GPU memory was 1.03 GB. No truncation is applied. |
 | Padding | Pad to the longest sequence within each batch. This avoids padding every example to the dataset-wide maximum. |
 
-Any truncation or text exclusion introduced for compute reasons must be reviewed and documented with the affected example counts. Word tokenization alone does not guarantee that long-range context will be learned.
+Any truncation or text exclusion introduced for compute reasons must be documented with the affected example counts. Word tokenization alone does not guarantee that long-range context will be learned.
 
 ## Architectures
 
@@ -122,7 +119,7 @@ Any truncation or text exclusion introduced for compute reasons must be reviewed
 
 Use a trainable 128-dimensional embedding layer, parallel one-dimensional convolutions with window sizes **2, 3, 4, and 5**, and **128 filters per window size**. Apply global max pooling over valid positions and concatenate the pooled features into a 512-dimensional vector. Apply dropout, then a linear classifier with three outputs.
 
-Different windows capture local patterns at several token lengths. Equal filter counts give each length equal capacity. Global max pooling detects whether a learned pattern appears anywhere in the sequence and produces a fixed-size representation. Padding must be excluded from pooling, and sequences shorter than a convolution window must be handled correctly. Apply **ReLU after each convolution** (approved): it adds a standard nonlinear transformation before max pooling.
+Different windows capture local patterns at several token lengths. Equal filter counts give each length equal capacity. Global max pooling detects whether a learned pattern appears anywhere in the sequence and produces a fixed-size representation. Padding must be excluded from pooling, and sequences shorter than a convolution window must be handled correctly. Apply **ReLU after each convolution**: it adds a standard nonlinear transformation before max pooling.
 
 ### Bidirectional LSTM
 
@@ -138,7 +135,7 @@ Both architectures use **dropout of 0.5 before the classifier** to reduce overfi
 | --- | --- | --- |
 | Optimizer | Adam with default settings, including learning rate 0.001 | Provides a standard starting point without expanding into a tuning search. |
 | Loss | Ordinary cross-entropy on the three class logits, without class weights | Matches mutually exclusive multiclass classification. Classes are balanced by sampling, so no weights are needed. |
-| Batch size | 16 | Offers a compromise between memory and update frequency. It is not changed automatically: an out-of-memory error stops the run and is reported for review. |
+| Batch size | 16 | Offers a compromise between memory and update frequency. It is not changed automatically: an out-of-memory error stops the run. |
 | Epochs | 15 for each configuration | Establishes a fixed, consistent training budget; does not guarantee convergence. |
 | Best checkpoint | Highest validation macro F1; ties resolved by lower validation loss | Gives every family equal importance and aligns selection with evaluation. |
 | Additional checkpoints | Epochs 5, 10, and 15 | Preserves progress without excessive checkpoint files. |
@@ -148,7 +145,7 @@ Both architectures use **dropout of 0.5 before the classifier** to reduce overfi
 
 Reset the seed before initializing each configuration rather than relying solely on a single seed call at notebook startup. Record software versions, hardware, and any compute-driven adjustments. A fixed seed does not guarantee identical CPU and GPU results, and one run does not measure variability across seeds.
 
-Checkpoints (approved) include:
+Checkpoints include:
 - model and optimizer state;
 - the completed epoch;
 - the best validation macro F1, its loss, and its epoch;
@@ -159,7 +156,7 @@ Checkpoints (approved) include:
 
 Each configuration has its own directory, containing `latest.pt` (every epoch), `best.pt`, and `epoch_05/10/15.pt`. A run is continued only when explicitly requested, and only if its configuration and data identity match.
 
-The first training session runs only epoch 1 of BiLSTM input + output. It checks mixed-length batch costs before all runs are launched, and it counts as epoch 1 of that run. Evaluate each configuration's best validation checkpoint on the test set. Do not select checkpoints or settings using test results.
+The first training session ran only epoch 1 of BiLSTM input + output to measure the cost of mixed-length batches before all runs were launched. That run was then resumed and completed through epoch 15. The GPU resume self-check passed on Colab before training. Evaluate each configuration's best validation checkpoint on the test set. Do not select checkpoints or settings using test results.
 
 ## Evaluation and reporting
 
@@ -173,4 +170,10 @@ The report must include dataset curation, architecture and training details, res
 
 Submit a GitHub repository containing the code/notebook and a PDF report identifying Kevin Coulter as the individual author.
 
-The data pipeline, models, training, checkpoint continuation, and gated test evaluation are implemented. Real training, the GPU resume self-check, and test evaluation remain unexecuted.
+Completed on Colab (Tesla T4), as recorded in the notebook's saved outputs:
+- the GPU resume self-check passed;
+- all six configurations completed 15 epochs with the settings above;
+- the test preflight passed, and each best validation checkpoint was evaluated once on the test split (accuracy, macro F1, and confusion matrices);
+- training-curve and confusion-matrix figures were generated from the saved artifacts.
+
+Checkpoints, histories, predictions, and figures are stored on Google Drive, not in the repository. Remaining work: add the final PDF report to the repository.
